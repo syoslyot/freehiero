@@ -31,6 +31,12 @@ GMAIL_RECIPIENT: str = os.getenv("GMAIL_RECIPIENT", "")
 LINE_CHANNEL_ACCESS_TOKEN: str = os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "")
 LINE_USER_ID: str = os.getenv("LINE_USER_ID", "")
 
+# IMAP IDLE trigger (optional fast path)
+IMAP_ENABLED: bool = os.getenv("IMAP_ENABLED", "false").lower() == "true"
+IMAP_HOST: str = os.getenv("IMAP_HOST", "imap.gmail.com")
+IMAP_USER: str = os.getenv("IMAP_USER", "")
+IMAP_APP_PASSWORD: str = os.getenv("IMAP_APP_PASSWORD", "")
+
 # Ollama (Layer 2 detector, optional)
 OLLAMA_ENABLED: bool = os.getenv("OLLAMA_ENABLED", "false").lower() == "true"
 OLLAMA_URL: str = os.getenv("OLLAMA_URL", "http://localhost:11434")
