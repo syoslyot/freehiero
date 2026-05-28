@@ -1,0 +1,20 @@
+# systemd service for fb-food-monitor
+# Install: sudo cp fb-monitor.service /etc/systemd/system/
+#          sudo systemctl enable --now fb-monitor
+
+[Unit]
+Description=FB Food Monitor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/fb-food-monitor
+ExecStart=/opt/fb-food-monitor/.venv/bin/python scheduler.py
+Restart=always
+RestartSec=30
+Environment=DISPLAY=:99
+
+[Install]
+WantedBy=multi-user.target
