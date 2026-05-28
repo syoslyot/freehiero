@@ -1,4 +1,4 @@
-# systemd service for fb-food-monitor
+# systemd service for freehiero
 # Install: sudo cp fb-monitor.service /etc/systemd/system/
 #          sudo systemctl enable --now fb-monitor
 
@@ -10,8 +10,8 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=ubuntu
-WorkingDirectory=/opt/fb-food-monitor
-ExecStart=/opt/fb-food-monitor/.venv/bin/python scheduler.py
+WorkingDirectory=/opt/freehiero
+ExecStart=/opt/freehiero/.venv/bin/python scheduler.py
 Restart=always
 RestartSec=30
 Environment=DISPLAY=:99
