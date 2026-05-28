@@ -13,7 +13,7 @@ class Detector(ABC):
 
 # ── Layer 1 ───────────────────────────────────────────────────────────────────
 
-_FREE_WORDS = r"免費|free|請拿|拿走|多餘|多的|送人|不要了|剩食|剩菜|拿去|有需要|自取|帶走|送出|分享"
+_FREE_WORDS = r"免費|free|請拿|拿走|多餘|多的|送人|不要了|剩食|剩菜|拿去|有需要|帶走|送出|分享"
 _FOOD_WORDS = r"食物|食品|飯|麵|便當|零食|餅乾|水果|蔬菜|菜|湯|肉|蛋|麵包|吐司|料理|點心|糕|餅|粽|飲料|奶茶|咖啡|茶|寶特瓶|三明治|沙拉|漢堡|披薩|壽司|飯糰|泡麵|湯圓"
 
 _PATTERN_FREE_FOOD = re.compile(
@@ -25,6 +25,12 @@ _PATTERN_NOT_FOOD = re.compile(
     r"免費.*?(?:課程|諮詢|活動|講座|workshop|票|名額|參加|索取)", re.IGNORECASE
 )
 
+# Seminar context: "研討會" near a meal word strongly implies free food even without explicit 免費
+_PATTERN_SEMINAR_FOOD = re.compile(
+    r"研討會.{0,30}(?:午餐|便當|晚餐|早餐|飲料|茶水|點心|食物|宵夜)",
+    re.IGNORECASE | re.DOTALL,
+)
+
 
 class KeywordDetector(Detector):
     """Layer 1: fast regex. Returns True if text almost certainly describes free food."""
@@ -34,7 +40,7 @@ class KeywordDetector(Detector):
             return False
         if _PATTERN_NOT_FOOD.search(text):
             return False
-        return bool(_PATTERN_FREE_FOOD.search(text))
+        return bool(_PATTERN_FREE_FOOD.search(text)) or bool(_PATTERN_SEMINAR_FOOD.search(text))
 
 
 # ── Layer 2 (optional) ────────────────────────────────────────────────────────

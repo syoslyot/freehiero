@@ -55,8 +55,20 @@ async def _extract_posts(page: Page, limit: int) -> list[RawPost]:
             continue
         post_id = m.group(1)
 
-        # Extract visible text
+        # Extract visible text; also try to capture the marketplace listing title
+        # which FB sometimes renders outside the main feed body
         text = (await article.inner_text()).strip()
+        for title_sel in [
+            'a[href*="/marketplace/item/"] span',
+            'span[data-ad-rendering-role="title"]',
+            'h2 span[dir="auto"]',
+        ]:
+            el = await article.query_selector(title_sel)
+            if el:
+                title = (await el.inner_text()).strip()
+                if title and title not in text:
+                    text = f"{title}\n{text}"
+                break
 
         # Normalise URL to absolute
         if permalink.startswith("/"):
