@@ -17,7 +17,7 @@ import imaplib
 import socket
 import threading
 import time
-from collections.abc import Coroutine
+from collections.abc import Callable, Coroutine
 from typing import Any
 
 FB_MAIL_DOMAIN = b'"facebookmail.com"'
@@ -33,7 +33,7 @@ class ImapTrigger:
         host: str,
         user: str,
         password: str,
-        on_fb_mail: Coroutine[Any, Any, None],
+        on_fb_mail: Callable[[], Coroutine[Any, Any, None]],
     ) -> None:
         self._host = host
         self._user = user
