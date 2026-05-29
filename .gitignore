@@ -4,3 +4,4 @@ __pycache__/
 fb-session/
 *.db
 .env
+data/

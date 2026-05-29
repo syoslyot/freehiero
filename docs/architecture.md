@@ -60,6 +60,8 @@ FB 帳號對社團開啟「所有通知」後，每當有新貼文 FB 會寄 ema
 | `store.py` | SQLite，記錄已通知 post ID，防止重複通知 |
 | `imap_trigger.py` | IMAP IDLE 背景 thread，收到 FB email 時呼叫 async callback |
 | `config.py` | 從 `.env` 讀取所有設定 |
+| `training/login.py` | 首次 FB 登入，建立 `fb-session/` |
+| `training/label_tool.py` | 互動式資料標注工具，儲存至 `data/labeled.json` |
 
 ## 兩層偵測（TwoLayerDetector）
 
@@ -68,6 +70,7 @@ FB 帳號對社團開啟「所有通知」後，每當有新貼文 FB 會寄 ema
   │
   ├─ L1: KeywordDetector（< 1ms）
   │   ├─ 直接命中（免費 + 食物關鍵字同時出現）→ True
+  │   ├─ 研討會剩食模式（研討會 + 餐點關鍵字）→ True
   │   ├─ 明顯非食物（免費課程/活動/票）       → False
   │   └─ 不確定（有部分信號）                 → L2
   │
@@ -83,3 +86,18 @@ L2 只在有「部分信號」時才啟動，95% 的貼文在 L1 就結束。
 - **playwright-stealth**：抹除 Headless 特徵，降低被 FB 偵測機率
 - **隨機輪詢間隔**：`random.uniform(POLL_MIN_SEC, POLL_MAX_SEC)` 避免固定 pattern
 - **IMAP IDLE 減少 browser 開啟頻率**：email 觸發時才開 browser，大幅降低請求量
+
+## 訓練資料流程
+
+```
+training/login.py      ← 首次登入，建立 fb-session/
+training/label_tool.py ← 互動式標注，儲存至 data/labeled.json
+                           --scrape-only  → 爬貼文存 data/pending.json（再請 Claude 歸檔）
+                           --negative     → 負例模式（瀏覽一般 feed，Enter 預設 n）
+                           --export       → 匯出 Colab SAMPLES 格式
+data/labeled.json      ← 已標注資料（gitignore，個資已遮蔽）
+data/raw/              ← 各 query 的原始爬取資料（英文檔名）
+data/raw/manifest.json ← filename → 實際 query 對照表
+```
+
+目前資料集：131 筆（正例 78 / 負例 53）。
