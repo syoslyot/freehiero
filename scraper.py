@@ -11,8 +11,10 @@ import asyncio
 import re
 from dataclasses import dataclass
 
-from playwright.async_api import Browser, BrowserContext, Page, async_playwright
-from playwright_stealth import stealth_async
+from playwright.async_api import BrowserContext, Page, async_playwright
+from playwright_stealth import Stealth
+
+_stealth = Stealth()
 
 SESSION_DIR = "fb-session"
 _POST_ID_RE = re.compile(r"/posts/(\d+)")
@@ -71,17 +73,14 @@ class FBScraper:
     def __init__(self, group_url: str) -> None:
         self._group_url = group_url
         self._playwright = None
-        self._browser: Browser | None = None
         self._context: BrowserContext | None = None
 
     async def start(self) -> None:
         self._playwright = await async_playwright().start()
-        self._browser = await self._playwright.chromium.launch(
-            headless=False,  # non-headless avoids most FB bot detection
-            args=["--no-sandbox", "--disable-blink-features=AutomationControlled"],
-        )
-        self._context = await self._browser.new_persistent_context(
+        self._context = await self._playwright.chromium.launch_persistent_context(
             user_data_dir=SESSION_DIR,
+            headless=False,
+            args=["--no-sandbox", "--disable-blink-features=AutomationControlled"],
             viewport={"width": 1280, "height": 900},
             locale="zh-TW",
         )
@@ -89,15 +88,13 @@ class FBScraper:
     async def stop(self) -> None:
         if self._context:
             await self._context.close()
-        if self._browser:
-            await self._browser.close()
         if self._playwright:
             await self._playwright.stop()
 
     async def ensure_logged_in(self) -> None:
         """Open FB and wait for user to log in manually if session is not saved."""
         page = await self._context.new_page()
-        await stealth_async(page)
+        await _stealth.apply_stealth_async(page)
         await page.goto("https://www.facebook.com/", wait_until="domcontentloaded")
         # If the login form is present, we need manual login
         login_form = await page.query_selector('input[name="email"]')
@@ -109,7 +106,7 @@ class FBScraper:
 
     async def fetch_posts(self, limit: int = 10) -> list[RawPost]:
         page = await self._context.new_page()
-        await stealth_async(page)
+        await _stealth.apply_stealth_async(page)
         try:
             await page.goto(self._group_url, wait_until="domcontentloaded", timeout=30_000)
             # Wait for feed to render
