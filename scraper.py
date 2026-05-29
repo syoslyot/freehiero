@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import asyncio
 import re
-from dataclasses import dataclass
 
 from playwright.async_api import BrowserContext, Page, async_playwright
 from playwright_stealth import Stealth
+
+from models import Post
 
 _stealth = Stealth()
 
@@ -21,18 +22,11 @@ _POST_ID_RE = re.compile(r"/posts/(\d+)")
 _STORY_ID_RE = re.compile(r"story_fbid=(\d+)")
 
 
-@dataclass
-class RawPost:
-    post_id: str
-    text: str
-    url: str
-
-
-async def _extract_posts(page: Page, limit: int) -> list[RawPost]:
+async def _extract_posts(page: Page, limit: int) -> list[Post]:
     """Extract up to `limit` posts from the current group feed page."""
     # FB renders posts as <div role="article"> elements
     articles = await page.query_selector_all('div[role="article"]')
-    posts: list[RawPost] = []
+    posts: list[Post] = []
 
     for article in articles[:limit]:
         # Try to find the permalink inside the article
@@ -64,7 +58,7 @@ async def _extract_posts(page: Page, limit: int) -> list[RawPost]:
         if permalink.startswith("/"):
             permalink = "https://www.facebook.com" + permalink
 
-        posts.append(RawPost(post_id=post_id, text=text, url=permalink))
+        posts.append(Post(post_id=post_id, text=text, url=permalink))
 
     return posts
 
@@ -104,7 +98,7 @@ class FBScraper:
             await asyncio.get_event_loop().run_in_executor(None, input)
         await page.close()
 
-    async def fetch_posts(self, limit: int = 10) -> list[RawPost]:
+    async def fetch_posts(self, limit: int = 10) -> list[Post]:
         page = await self._context.new_page()
         await _stealth.apply_stealth_async(page)
         try:

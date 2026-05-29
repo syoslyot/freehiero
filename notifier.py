@@ -1,33 +1,25 @@
 import smtplib
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from email.message import EmailMessage
 
 import httpx
 
 import config
-
-
-@dataclass
-class Post:
-    post_id: str
-    text: str
-    url: str
+from models import Notification
 
 
 class Notifier(ABC):
     @abstractmethod
-    def send(self, post: Post) -> None: ...
+    def send(self, notification: Notification) -> None: ...
 
 
 # ── Telegram ──────────────────────────────────────────────────────────────────
 
 class TelegramNotifier(Notifier):
-    def send(self, post: Post) -> None:
-        msg = f"🍱 偵測到免費食物！\n\n{post.text[:200]}...\n\n{post.url}"
+    def send(self, notification: Notification) -> None:
         httpx.post(
             f"https://api.telegram.org/bot{config.TELEGRAM_BOT_TOKEN}/sendMessage",
-            json={"chat_id": config.TELEGRAM_CHAT_ID, "text": msg},
+            json={"chat_id": config.TELEGRAM_CHAT_ID, "text": notification.body},
             timeout=10,
         ).raise_for_status()
 
@@ -35,12 +27,12 @@ class TelegramNotifier(Notifier):
 # ── Gmail ─────────────────────────────────────────────────────────────────────
 
 class GmailNotifier(Notifier):
-    def send(self, post: Post) -> None:
+    def send(self, notification: Notification) -> None:
         msg = EmailMessage()
-        msg["Subject"] = "🍱 社團免費食物通知"
+        msg["Subject"] = notification.title
         msg["From"] = config.GMAIL_SENDER
         msg["To"] = config.GMAIL_RECIPIENT
-        msg.set_content(f"{post.text[:400]}\n\n{post.url}")
+        msg.set_content(notification.body)
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as s:
             s.login(config.GMAIL_SENDER, config.GMAIL_APP_PASSWORD)
             s.send_message(msg)
@@ -49,8 +41,7 @@ class GmailNotifier(Notifier):
 # ── LINE Messaging API ────────────────────────────────────────────────────────
 
 class LineNotifier(Notifier):
-    def send(self, post: Post) -> None:
-        msg = f"🍱 偵測到免費食物！\n\n{post.text[:200]}...\n\n{post.url}"
+    def send(self, notification: Notification) -> None:
         httpx.post(
             "https://api.line.me/v2/bot/message/push",
             headers={
@@ -59,7 +50,7 @@ class LineNotifier(Notifier):
             },
             json={
                 "to": config.LINE_USER_ID,
-                "messages": [{"type": "text", "text": msg}],
+                "messages": [{"type": "text", "text": notification.body}],
             },
             timeout=10,
         ).raise_for_status()

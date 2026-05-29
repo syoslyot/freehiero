@@ -11,48 +11,48 @@ import random
 
 import config
 import store
-from detector import TwoLayerDetector
-from notifier import Post, build_notifiers
+from categories import get_enabled
+from categories.base import Category
+from notifier import Notifier, build_notifiers
 from scraper import FBScraper
 
 
 async def process_posts(
     scraper: FBScraper,
-    detector: TwoLayerDetector,
-    notifiers: list,
+    categories: list[Category],
+    notifiers: list[Notifier],
     source: str,
 ) -> None:
     print(f"[scheduler] fetch triggered by {source}")
-    raw_posts = await scraper.fetch_posts(limit=config.POSTS_TO_CHECK)
-    print(f"[scheduler] fetched {len(raw_posts)} posts")
+    posts = await scraper.fetch_posts(limit=config.POSTS_TO_CHECK)
+    print(f"[scheduler] fetched {len(posts)} posts")
 
-    for raw in raw_posts:
-        if store.is_seen(raw.post_id):
-            continue
-
-        if detector.is_food_giveaway(raw.text):
-            print(f"[scheduler] 🍱 match: {raw.post_id}")
-            post = Post(post_id=raw.post_id, text=raw.text, url=raw.url)
-            for n in notifiers:
-                try:
-                    n.send(post)
-                except Exception as e:
-                    print(f"[scheduler] notify error ({type(n).__name__}): {e}")
-
-        store.mark_seen(raw.post_id)
+    for post in posts:
+        for category in categories:
+            if store.is_seen(post.post_id, category.id):
+                continue
+            if category.detector.is_match(post.text):
+                print(f"[scheduler] match [{category.name}]: {post.post_id}")
+                notification = category.format_notification(post)
+                for n in notifiers:
+                    try:
+                        n.send(notification)
+                    except Exception as e:
+                        print(f"[scheduler] notify error ({type(n).__name__}): {e}")
+            store.mark_seen(post.post_id, category.id)
 
 
 async def poll_loop(
     scraper: FBScraper,
-    detector: TwoLayerDetector,
-    notifiers: list,
+    categories: list[Category],
+    notifiers: list[Notifier],
 ) -> None:
     """Fallback: periodic poll every POLL_MIN_SEC–POLL_MAX_SEC seconds."""
     while True:
         delay = random.uniform(config.POLL_MIN_SEC, config.POLL_MAX_SEC)
         print(f"[poll] next in {delay / 60:.1f} min")
         await asyncio.sleep(delay)
-        await process_posts(scraper, detector, notifiers, source="poll")
+        await process_posts(scraper, categories, notifiers, source="poll")
 
 
 async def main() -> None:
@@ -60,12 +60,13 @@ async def main() -> None:
     await scraper.start()
     await scraper.ensure_logged_in()
 
-    detector = TwoLayerDetector()
+    categories = get_enabled()
     notifiers = build_notifiers()
 
     print(
-        f"[scheduler] started | notifiers: {config.ENABLED_NOTIFIERS} "
-        f"| imap: {config.IMAP_ENABLED} | ollama: {config.OLLAMA_ENABLED}"
+        f"[scheduler] started | categories: {[c.id for c in categories]} "
+        f"| notifiers: {config.ENABLED_NOTIFIERS} "
+        f"| imap: {config.IMAP_ENABLED}"
     )
 
     loop = asyncio.get_running_loop()
@@ -76,7 +77,7 @@ async def main() -> None:
         from imap_trigger import ImapTrigger
 
         async def on_fb_mail() -> None:
-            await process_posts(scraper, detector, notifiers, source="imap")
+            await process_posts(scraper, categories, notifiers, source="imap")
 
         imap = ImapTrigger(
             host=config.IMAP_HOST,
@@ -87,10 +88,10 @@ async def main() -> None:
         imap.start(loop)
 
     # ── Periodic fallback poll ────────────────────────────────────────────────
-    tasks.append(asyncio.create_task(poll_loop(scraper, detector, notifiers)))
+    tasks.append(asyncio.create_task(poll_loop(scraper, categories, notifiers)))
 
     # Initial poll on startup so we don't miss posts during the first delay
-    await process_posts(scraper, detector, notifiers, source="startup")
+    await process_posts(scraper, categories, notifiers, source="startup")
 
     await asyncio.gather(*tasks)
 

@@ -1,12 +1,14 @@
+import re
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-from detector import KeywordDetector, OllamaDetector, TwoLayerDetector
+from detector import Detector, TwoLayerDetector
+from categories.food import FoodKeywordDetector
 
 
-class TestKeywordDetector:
+class TestFoodKeywordDetector:
     def setup_method(self):
-        self.det = KeywordDetector()
+        self.det = FoodKeywordDetector()
 
     # ── 正例 ──────────────────────────────────────────────────────────────────
     @pytest.mark.parametrize("text", [
@@ -39,7 +41,7 @@ class TestKeywordDetector:
         "舞展工作人員福利：當日免費供餐",
     ])
     def test_positive(self, text):
-        assert self.det.is_food_giveaway(text) is True
+        assert self.det.is_match(text) is True
 
     # ── 負例 ──────────────────────────────────────────────────────────────────
     @pytest.mark.parametrize("text", [
@@ -59,46 +61,47 @@ class TestKeywordDetector:
         "學術研討會徵求攝影師，時間13:30，包含午餐",  # 研討會+午餐但距離遠
     ])
     def test_negative(self, text):
-        assert self.det.is_food_giveaway(text) is False
+        assert self.det.is_match(text) is False
 
 
 class TestTwoLayerDetector:
-    def test_l1_hit_skips_ollama(self):
+    def test_l1_hit_skips_l2(self):
         """L1 直接命中時不呼叫 L2。"""
-        with patch("detector.config") as mock_cfg:
-            mock_cfg.OLLAMA_ENABLED = True
-            mock_cfg.OLLAMA_URL = "http://localhost:11434"
-            mock_cfg.OLLAMA_MODEL = "qwen2.5:0.5b"
-            det = TwoLayerDetector()
-            det._ollama = MagicMock(spec=OllamaDetector)
-            result = det.is_food_giveaway("免費便當，快來拿！")
-            det._ollama.is_food_giveaway.assert_not_called()
-            assert result is True
+        mock_l1 = MagicMock(spec=Detector)
+        mock_l1.is_match.return_value = True
+        mock_l2 = MagicMock(spec=Detector)
+        det = TwoLayerDetector(mock_l1, mock_l2)
+        result = det.is_match("免費便當，快來拿！")
+        mock_l2.is_match.assert_not_called()
+        assert result is True
 
     def test_l2_called_on_partial_signal(self):
         """L1 無法確定、有部分信號時，呼叫 L2。"""
-        with patch("detector.config") as mock_cfg:
-            mock_cfg.OLLAMA_ENABLED = True
-            mock_cfg.OLLAMA_URL = "http://localhost:11434"
-            mock_cfg.OLLAMA_MODEL = "qwen2.5:0.5b"
-            det = TwoLayerDetector()
-            mock_ollama = MagicMock(spec=OllamaDetector)
-            mock_ollama.is_food_giveaway.return_value = True
-            det._ollama = mock_ollama
-            # 只有食物關鍵字，沒有免費關鍵字 → L1 不命中但有 signal → L2
-            result = det.is_food_giveaway("有飯，有人要嗎")
-            mock_ollama.is_food_giveaway.assert_called_once()
-            assert result is True
+        mock_l1 = MagicMock(spec=Detector)
+        mock_l1.is_match.return_value = False
+        mock_l2 = MagicMock(spec=Detector)
+        mock_l2.is_match.return_value = True
+        signal = re.compile(r"飯|便當")
+        det = TwoLayerDetector(mock_l1, mock_l2, signal_pattern=signal)
+        # 只有食物關鍵字，沒有免費關鍵字 → L1 不命中但有 signal → L2
+        result = det.is_match("有飯，有人要嗎")
+        mock_l2.is_match.assert_called_once()
+        assert result is True
 
     def test_no_signal_skips_l2(self):
         """完全沒有關鍵字信號，L2 不應被呼叫。"""
-        with patch("detector.config") as mock_cfg:
-            mock_cfg.OLLAMA_ENABLED = True
-            mock_cfg.OLLAMA_URL = "http://localhost:11434"
-            mock_cfg.OLLAMA_MODEL = "qwen2.5:0.5b"
-            det = TwoLayerDetector()
-            mock_ollama = MagicMock(spec=OllamaDetector)
-            det._ollama = mock_ollama
-            result = det.is_food_giveaway("徵室友，近學校，水電費另計")
-            mock_ollama.is_food_giveaway.assert_not_called()
-            assert result is False
+        mock_l1 = MagicMock(spec=Detector)
+        mock_l1.is_match.return_value = False
+        mock_l2 = MagicMock(spec=Detector)
+        signal = re.compile(r"飯|便當")
+        det = TwoLayerDetector(mock_l1, mock_l2, signal_pattern=signal)
+        result = det.is_match("徵室友，近學校，水電費另計")
+        mock_l2.is_match.assert_not_called()
+        assert result is False
+
+    def test_no_l2_returns_false_on_l1_miss(self):
+        """沒有 L2 時，L1 未命中直接回 False。"""
+        mock_l1 = MagicMock(spec=Detector)
+        mock_l1.is_match.return_value = False
+        det = TwoLayerDetector(mock_l1)
+        assert det.is_match("有飯") is False
