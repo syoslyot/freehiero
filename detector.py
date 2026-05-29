@@ -13,16 +13,37 @@ class Detector(ABC):
 
 # ── Layer 1 ───────────────────────────────────────────────────────────────────
 
-_FREE_WORDS = r"免費|free|請拿|拿走|多餘|多的|送人|不要了|剩食|剩菜|拿去|有需要|自取|帶走|送出|分享"
-_FOOD_WORDS = r"食物|食品|飯|麵|便當|零食|餅乾|水果|蔬菜|菜|湯|肉|蛋|麵包|吐司|料理|點心|糕|餅|粽|飲料|奶茶|咖啡|茶|寶特瓶|三明治|沙拉|漢堡|披薩|壽司|飯糰|泡麵|湯圓"
+_FREE_WORDS = (
+    r"免費|free|請拿|拿走|多餘|多的|多出|多出來|送人|不要了"
+    r"|剩食|剩菜|剩下|剩餘|拿去|有需要|自取|帶走|送出|分享|食安自負"
+)
+_FOOD_WORDS = (
+    r"食物|食品|飯|麵|便當|零食|餅乾|水果|蔬菜|菜|湯|肉|蛋|麵包|吐司"
+    r"|料理|點心|糕|餅|粽|飲料|奶茶|咖啡|茶|寶特瓶"
+    r"|三明治|沙拉|漢堡|披薩|壽司|飯糰|泡麵|湯圓"
+    r"|餐盒|餐點|供餐|美食|buffet|豆花|午餐|晚餐|早餐"
+)
 
+# Both a free-signal word and a food word must appear on the same line
 _PATTERN_FREE_FOOD = re.compile(
     rf"(?=.*({_FREE_WORDS}))(?=.*({_FOOD_WORDS}))", re.IGNORECASE
 )
 
+# Event (研討會 / 活動 / 工作坊 …) with leftover food nearby
+_PATTERN_EVENT_FOOD = re.compile(
+    r"(?:研討會|活動|工作坊|workshop|系上|系所|院上).{0,10}"
+    r"(?:便當|餐盒|餐點|飲料|茶水|茶點|點心|食物|宵夜|剩食|buffet|美食|午餐|晚餐|早餐)",
+    re.IGNORECASE | re.DOTALL,
+)
+
+# Explicit catering/free-meal announcement
+_PATTERN_HAS_CATERING = re.compile(
+    r"(?:有|免費|提供)供餐", re.IGNORECASE
+)
+
 # Obvious negatives: free things that are clearly not food
 _PATTERN_NOT_FOOD = re.compile(
-    r"免費.*?(?:課程|諮詢|活動|講座|workshop|票|名額|參加|索取)", re.IGNORECASE
+    r"免費.*?(?:課程|諮詢|講座|workshop|票|名額|索取|演講|入場)", re.IGNORECASE
 )
 
 
@@ -34,7 +55,13 @@ class KeywordDetector(Detector):
             return False
         if _PATTERN_NOT_FOOD.search(text):
             return False
-        return bool(_PATTERN_FREE_FOOD.search(text))
+        if _PATTERN_FREE_FOOD.search(text):
+            return True
+        if _PATTERN_EVENT_FOOD.search(text):
+            return True
+        if _PATTERN_HAS_CATERING.search(text):
+            return True
+        return False
 
 
 # ── Layer 2 (optional) ────────────────────────────────────────────────────────

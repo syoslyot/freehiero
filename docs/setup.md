@@ -2,7 +2,7 @@
 
 ## 前置需求
 
-- Python 3.11+
+- Python 3.10+
 - 已被加入目標 FB 私人社團的 FB 帳號
 
 ## 安裝
@@ -10,9 +10,9 @@
 ```bash
 git clone https://github.com/syoslyot/freehiero.git
 cd freehiero
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-playwright install chromium
+python3 -m venv .venv && source .venv/bin/activate
+pip3 install -r requirements.txt
+python3 -m playwright install chromium
 ```
 
 ## 設定 .env
@@ -68,15 +68,13 @@ cp .env.example .env
 啟用後延遲從 ~13 分鐘降到幾秒。
 
 1. Gmail → 設定 → 查看所有設定 → 轉寄和 POP/IMAP → **啟用 IMAP**
-2. 在監測 FB 帳號的 Gmail，確認 FB email 通知已開啟：
-   FB → 設定 → 通知 → Email → 社團貼文 → 開啟
+2. 確認 FB email 通知已開啟：FB → 設定 → 通知 → Email → 社團貼文 → 開啟
 3. 填入 `.env`：
    ```
    IMAP_ENABLED=true
    IMAP_USER=your-monitored-account@gmail.com
-   IMAP_APP_PASSWORD=xxxx xxxx xxxx xxxx   # 同 Gmail SMTP 的 app password
+   IMAP_APP_PASSWORD=xxxx xxxx xxxx xxxx
    ```
-   > `IMAP_APP_PASSWORD` 與 `GMAIL_APP_PASSWORD` 可以是同一組（同帳號時）
 
 ## Ollama 設定（選配，Layer 2 偵測）
 
@@ -94,11 +92,19 @@ OLLAMA_ENABLED=true
 
 ## 第一次執行
 
+**Step 1：FB 登入（只需做一次）**
+
 ```bash
-python scheduler.py
+python3 training/login.py
 ```
 
-首次執行時，Playwright 會開啟 Chromium 視窗等待手動登入 FB。
-登入完成後按 Enter，session 存入 `fb-session/`，之後不需重複登入。
+Chromium 視窗彈出後手動登入 FB，登入完成後在終端按 Enter。
+Session 存入 `fb-session/`，之後不需重複登入。
 
-> 如果跑在沒有螢幕的環境（如 VPS），請先參考 [deployment.md](deployment.md) 設定 Xvfb。
+**Step 2：啟動監測**
+
+```bash
+python3 scheduler.py
+```
+
+> 在沒有螢幕的 VPS 上執行，請先參考 [deployment.md](deployment.md) 設定 Xvfb。
