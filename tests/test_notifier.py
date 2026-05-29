@@ -3,18 +3,17 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import config
+from models import Notification
 from notifier import (
     GmailNotifier,
     LineNotifier,
-    Post,
     TelegramNotifier,
     build_notifiers,
 )
 
-SAMPLE_POST = Post(
-    post_id="99",
-    text="免費便當，快來拿！工程館一樓",
-    url="https://www.facebook.com/groups/123/posts/99",
+SAMPLE_NOTIFICATION = Notification(
+    title="社團通知",
+    body="免費便當，快來拿！工程館一樓\nhttps://www.facebook.com/groups/123/posts/99",
 )
 
 
@@ -24,7 +23,7 @@ class TestTelegramNotifier:
              patch.object(config, "TELEGRAM_BOT_TOKEN", "tok"), \
              patch.object(config, "TELEGRAM_CHAT_ID", "chat"):
             mock_post.return_value = MagicMock(raise_for_status=lambda: None)
-            TelegramNotifier().send(SAMPLE_POST)
+            TelegramNotifier().send(SAMPLE_NOTIFICATION)
             mock_post.assert_called_once()
             call_kwargs = mock_post.call_args
             assert "tok" in call_kwargs.args[0]          # URL contains token
@@ -38,7 +37,7 @@ class TestTelegramNotifier:
             mock_resp.raise_for_status.side_effect = Exception("HTTP 401")
             mock_post.return_value = mock_resp
             with pytest.raises(Exception, match="HTTP 401"):
-                TelegramNotifier().send(SAMPLE_POST)
+                TelegramNotifier().send(SAMPLE_NOTIFICATION)
 
 
 class TestGmailNotifier:
@@ -50,7 +49,7 @@ class TestGmailNotifier:
             mock_smtp = MagicMock()
             mock_smtp_cls.return_value.__enter__ = lambda s: mock_smtp
             mock_smtp_cls.return_value.__exit__ = MagicMock(return_value=False)
-            GmailNotifier().send(SAMPLE_POST)
+            GmailNotifier().send(SAMPLE_NOTIFICATION)
             mock_smtp.login.assert_called_once_with("a@gmail.com", "pw")
             mock_smtp.send_message.assert_called_once()
 
@@ -61,7 +60,7 @@ class TestLineNotifier:
              patch.object(config, "LINE_CHANNEL_ACCESS_TOKEN", "token"), \
              patch.object(config, "LINE_USER_ID", "U123"):
             mock_post.return_value = MagicMock(raise_for_status=lambda: None)
-            LineNotifier().send(SAMPLE_POST)
+            LineNotifier().send(SAMPLE_NOTIFICATION)
             mock_post.assert_called_once()
             assert "U123" in str(mock_post.call_args.kwargs)
 

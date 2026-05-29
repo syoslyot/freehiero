@@ -18,6 +18,11 @@ ENABLED_NOTIFIERS: list[str] = [
     s.strip() for s in os.getenv("ENABLED_NOTIFIERS", "telegram").split(",") if s.strip()
 ]
 
+# Enabled detection categories: comma-separated (e.g. "food", "housing", "events")
+ENABLED_CATEGORIES: list[str] = [
+    s.strip() for s in os.getenv("ENABLED_CATEGORIES", "food").split(",") if s.strip()
+]
+
 # Telegram
 TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID: str = os.getenv("TELEGRAM_CHAT_ID", "")

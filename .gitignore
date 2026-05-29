@@ -5,3 +5,4 @@ fb-session/
 *.db
 .env
 data/
+crawlers/

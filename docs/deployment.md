@@ -51,7 +51,7 @@ nano .env   # 填入所有設定
 
 ```bash
 # 本機：登入並建立 fb-session/
-python3 training/login.py
+python3 crawlers/login.py
 
 # 複製 session 到 VPS
 scp -i your-key.pem -r fb-session/ ubuntu@<VPS_IP>:/opt/freehiero/
@@ -65,7 +65,7 @@ ssh -X -i your-key.pem ubuntu@<VPS_IP>
 
 # VPS 上
 cd /opt/freehiero && source .venv/bin/activate
-python3 training/login.py
+python3 crawlers/login.py
 ```
 
 ## 設定 systemd service

@@ -27,6 +27,13 @@ cp .env.example .env
 |------|------|
 | `FB_GROUP_URL` | 目標社團 URL，例如 `https://www.facebook.com/groups/12345/` |
 | `ENABLED_NOTIFIERS` | 啟用的通知管道，逗號分隔，例如 `telegram,gmail` |
+| `ENABLED_CATEGORIES` | 啟用的偵測類別，逗號分隔，預設 `food` |
+
+目前支援的 categories：
+
+| 值 | 說明 |
+|----|------|
+| `food` | 免費食物（便當、飲料、零食等剩食或送出） |
 
 ## 通知管道設定
 
@@ -78,7 +85,7 @@ cp .env.example .env
 
 ## Ollama 設定（選配，Layer 2 偵測）
 
-增強對模糊語意的識別率（例如「東西帶走」而非「食物送人」）。
+增強對模糊語意的識別率，對每個啟用的 category 都有效。
 
 ```bash
 # 安裝 Ollama: https://ollama.com
@@ -95,7 +102,7 @@ OLLAMA_ENABLED=true
 **Step 1：FB 登入（只需做一次）**
 
 ```bash
-python3 training/login.py
+python3 crawlers/login.py
 ```
 
 Chromium 視窗彈出後手動登入 FB，登入完成後在終端按 Enter。
